@@ -1,1 +1,85 @@
+ What is a Pod in Kubernetes?
+A Pod is the smallest and simplest unit in the Kubernetes object model that you can create or deploy.
+A Pod represents a single instance of a running process in your cluster.
+It can contain one or more containers (usually one), which share the same network namespace, IP address, and volume(s).
+Example :
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-pod
+spec:
+  containers:
+    - name: nginx-container
+      image: nginx:latest
+      ports:
+        - containerPort: 80
+
+| Issue                        | Description                                                                           |
+| ---------------------------- | ------------------------------------------------------------------------------------- |
+| **CrashLoopBackOff**         | The container is starting and crashing repeatedly.                                    |
+| **ImagePullBackOff**         | Image cannot be pulled due to wrong name, registry issues, or authentication failure. |
+| **Pending**                  | Pod cannot be scheduled due to lack of resources or no matching node.                 |
+| **OOMKilled**                | Pod was killed because it exceeded memory limits.                                     |
+| **ContainerCreating**        | Pod is stuck while pulling image or setting up volume mounts.                         |
+| **Pod Stuck in Terminating** | Usually due to finalizers or volume unmount issues.                                   |
+
+Troubleshooting Steps for Pod Issues
+
+| Step                             | Command / Description                                          |
+| -------------------------------- | -------------------------------------------------------------- |
+| **Check Pod status**             | `kubectl get pods`                                             |
+| **Describe Pod**                 | `kubectl describe pod <pod-name>` (check events at the bottom) |
+| **Check logs**                   | `kubectl logs <pod-name>`                                      |
+| **Check logs of previous crash** | `kubectl logs <pod-name> --previous`                           |
+| **Debug into Pod**               | `kubectl exec -it <pod-name> -- /bin/sh`                       |
+| **Node status**                  | `kubectl get nodes` & `kubectl describe node <node-name>`      |
+| **Events**                       | `kubectl get events --sort-by='.metadata.creationTimestamp'`   |
+| **Image Pull Issues**            | Check for correct image name and registry permissions          |
+| **Stuck in Terminating**         | `kubectl delete pod <pod-name> --grace-period=0 --force`       |
+
+ Real-Time Scenario-Based Questions on Pods
+1. CrashLoopBackOff Issue
+Q1 ) A Pod is in CrashLoopBackOff. How will you troubleshoot it?
+kubectl describe pod <pod-name> → check reason
+kubectl logs <pod-name> or --previous
+Check container command/entrypoint
+Check resource limits
+
+2. Pod in Pending State
+Q2) A Pod is in the Pending state. What could be the reasons?
+Not enough CPU/RAM on any node
+NodeSelectors or Taints not matching
+PVC unbound
+Check with kubectl describe pod <pod-name>
+
+3. Static Pod Not Starting
+Q3)  Your static pod is not running on a node. What do you check?
+Pod manifest must be in /etc/kubernetes/manifests
+Run docker ps or crictl ps -a
+Check kubelet logs: journalctl -u kubelet
+Check if the YAML is valid
+
+4. Pod Restarting Frequently
+Q4)  A Pod restarts frequently. What are the causes?
+Application crashes (check logs)
+Probes misconfigured (liveness/readiness)
+OOMKilled → check with kubectl describe pod
+Missing files, bad config
+
+5.Multiple Containers in a Pod
+Q5)  Why and when do we use multiple containers in a Pod?
+Sidecar pattern (e.g., logging agent, proxy)
+Init containers (to prepare before main container starts)
+Shared volumes/network
+
+6. How do you debug a running pod in production?
+Q6.) kubectl exec -it <pod> -- /bin/sh or /bin/bash
+Port forward to the pod if necessary
+Check logs and metrics
+Attach ephemeral containers (kubectl debug) if supported
+
+
+
+
+
 
