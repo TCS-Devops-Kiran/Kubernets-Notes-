@@ -1,1 +1,24 @@
+What is a Service in Kubernetes?
+ In Kubernetes, a Service is an object that exposes a set of Pods as a network service. It gives a stable way to communicate with Pods, even though Pods can come and go (because they are dynamically created/destroyed).
 
+service Types
+=============
+1. clusterIP
+2. NodePort
+3. Load balancer
+
+
+1. Cluster IP
+
+It is the default type of service in Kubernetes.
+It creates a virtual IP address (called ClusterIP) that is only accessible inside the cluster.
+This means only other Pods inside the same cluster can talk to this service.
+
+How it works :
+
+1.When you create a service, Kubernetes gives it a ClusterIP (virtual IP).
+2.This ClusterIP gets registered in the internal DNS (kube-dns or CoreDNS).
+3.So, other Pods can talk to your service using just the service name (no need to remember IP addresses).
+4.The kube-proxy running on each node helps in redirecting traffic from this virtual IP to the correct backend Pods.
+
+Example:
