@@ -97,3 +97,84 @@ spec:
   ports:
   - port: 80
     targetPort: 8080
+
+Common Issues & Challenges: ClusterIP
+🔸 Issue 1: Pods can’t access the service
+Cause: Labels on Pods don’t match service’s selector.
+Troubleshooting:
+Check Pod labels: kubectl get pods --show-labels
+Check service selector: kubectl describe svc <svc-name>
+Check endpoints: kubectl get endpoints <svc-name>
+Fix: Match the selector and labels.
+
+Issue 2: DNS resolution not working
+Cause: DNS add-on (CoreDNS) is not working.
+Troubleshooting:
+Ensure coredns pods are running:
+kubectl get pods -n kube-system | grep coredns
+Run DNS query from Pod:
+kubectl exec -it <pod> -- nslookup <svc-name>
+Fix:
+Restart CoreDNS if needed
+Check ConfigMap in kube-system namespace
+
+Common Issues & Challenges: NodePort
+🔸 Issue 1: Can’t access app from external browser
+Cause: NodePort not open in firewall/cloud security groups.
+Troubleshooting:
+kubectl get svc <svc-name>
+Test from curl:
+curl http://<NodeIP>:<NodePort>
+Fix: Open the NodePort in firewall or security group (30000–32767)
+Issue 2: Node IP not accessible
+Cause: You're trying from a machine that can't reach your Node IP.
+Fix:
+Use a Node with a public IP
+Or use LoadBalancer service instead
+Q1) You deployed a ClusterIP service, but Pods can’t access it. What do you check?
+Verify service’s selector matches Pod labels
+Check endpoints: kubectl get ep <svc>
+Check DNS resolution with: nslookup <svc-name>
+Check if Pod is in the same namespace or use full DNS name (svc.namespace.svc.cluster.local)
+
+Q2)Your NodePort service is not accessible from a browser. How do you troubleshoot?
+   Verify Node’s external IP is correct
+   Check if NodePort is open in firewall
+  Run : curl http://<NodeIP>:<NodePort>
+ Check kube-proxy logs
+ Ensure Pods are healthy and Ready
+
+Q3) You have a webapp exposed using NodePort. What security concerns might arise?
+    Exposes high port numbers (30000–32767) publicly
+
+No HTTPS by default
+No path-based routing
+Recommend using Ingress for secured and organized access
+Q4)  Why would a ClusterIP service show “no endpoints”?
+   Pod not matching label selector
+Pod not in Ready state
+Pod crashed or was deleted
+Check : kubectl get ep <svc>
+Q4)Can you access a ClusterIP service from your laptop?
+   No. It’s only accessible inside the cluster.
+If you want to access it from outside:
+Use kubectl port-forward
+Or switch to NodePort or LoadBalancer
+
+
+
+| Tool                                        | Use                           |
+| ------------------------------------------- | ----------------------------- |
+| `kubectl describe svc`                      | Check ports, selectors        |
+| `kubectl get endpoints`                     | Confirm matched Pods          |
+| `nslookup <svc>`                            | Check DNS inside cluster      |
+| `kubectl exec -it <pod> -- curl <svc>:port` | Test from inside              |
+| `kube-proxy logs`                           | Check if proxying is working  |
+| `firewall-cmd / iptables`                   | Check OS-level network issues |
+
+
+
+
+
+
+
