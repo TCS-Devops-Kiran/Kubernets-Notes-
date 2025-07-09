@@ -1,1 +1,32 @@
+labels :
+Labels are key-value pairs that are attached to Kubernetes objects like Pods, Services, ReplicaSets, Deployments, etc.
+Purpose of Labels:
+*Organize and group resources.
+*Select a subset of objects.
+*Filter logs or metrics.
+*Attach metadata for CI/CD pipelines, environments, teams, versions
+
+Synatx:
+metadata:
+ name : nginx
+ namespace : prod
+ labels:
+  app: web-dev
+Selectors:
+Selectors are used to filter the k8s objectives based on labels
+Syntax:
+  apiVersion:V1
+  Kind : Service
+  metadata:
+   name : nginx
+   namespace : Prod
+spec:
+ type : ClusterIP  # This is the default type for services
+ selectors:
+   ports:
+     protocol: TCP
+      port: 80  # Service port
+      targetPort: 80  # The port on the container
+
+    
 
