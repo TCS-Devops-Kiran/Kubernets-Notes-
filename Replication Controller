@@ -1,1 +1,72 @@
+Replication Controller :
+Replication Controller is one of the key features of Kubernetes, which is responsible for managing the pod lifecycle. It is responsible for making sure that the specified number of pod replicas are running at any point of time.
+
+Example:
+
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: javawebapprc
+  namespace: test-ns
+spec:
+  replicas: 2
+  selector:
+    app: javawebapp
+  template:
+    metadata: 
+      name: javawebapprcpod
+      labels:
+        app: javawebapp
+    spec: 
+      containers:
+      - name: javawebapprccon
+        image: kkeducationb2/java-webapp:1.1
+        ports:
+        - containerPort: 8080
+
+Key Functions of ReplicationController:
+Ensures high availability of pods.
+Monitors pod health and automatically restarts failed or terminated pods.
+Maintains desired state as defined in the replicas field.
+
+Why ReplicationController is Deprecated?
+Replaced by ReplicaSet, which provides more powerful label selectors and is managed by Deployments.
+RCs have limited functionality compared to ReplicaSets and Deployments.
+
+| Issue                             | Description                                           | Troubleshooting                                                        |
+| --------------------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------- |
+| **Pods not scaling properly**     | When increasing `replicas`, the number doesn’t change | Check kube-controller-manager logs, and ensure the node has resources  |
+| **Pods not restarting**           | RC doesn’t restart failed pods                        | Check if the `selector` label correctly matches pod labels             |
+| **Stale Pods running**            | Old pods not getting deleted when updated             | RC doesn’t support rolling updates — delete manually                   |
+| **Pod stuck in CrashLoopBackOff** | RC keeps creating pods that crash repeatedly          | Investigate pod logs (`kubectl logs`), fix configuration               |
+| **Selector mismatch**             | RC unable to manage pods                              | Ensure `.spec.selector` matches `.metadata.labels` of the pod template |
+
+
+Common Challenges
+Limited update strategy – No rolling updates; must delete and recreate.
+Selector issues – Misconfigured selectors lead to unmanaged pods.
+Pod template changes not reflected – RC won’t update existing pods automatically.
+No revision history – No rollback options.
+Poor observability – No built-in rollout status or events like in Deployments.
+
+Troubleshooting steps 
+1.Check logs of problematic pod: kubectl logs <podname>
+2.Describe the RC to view events: kubectl describe rc <rc-name>
+3.Check if labels match between RC and pods: kubectl get rc <rc-name> -o yaml
+                                             kubectl get pods --show-labels
+4.List and verify replica count: kubectl get rc
+5.Manually delete non-compliant pods: kubectl delete pod <pod-name>
+Scenario Based Questions:
+
+1.In your project, how did you use ReplicationController?
+  We used ReplicationController to ensure a specified number of nginx-based frontend pods were always running. It helped maintain service availability before we transitioned to Deployments and ReplicaSets for rolling updates.
+2.What issues did you face with ReplicationController in production?
+  We faced a situation where the RC wasn’t scaling pods properly. The label selector didn’t match the pod labels, so even after increasing the replica count, no new pods were created. We resolved it by correcting the labels and restarting the RC.
+3.Q3: Can a ReplicationController manage pods that were not created by it?
+   Yes, but only if the pods match the RC’s label selector. This can be risky, as it may accidentally take control of unrelated pods.
+Q4: What happens when a pod managed by a ReplicationController is deleted manually?
+The RC detects the deletion and immediately creates a new pod to maintain the desired replica count.
+Q5: Why would you replace ReplicationController with ReplicaSet or Deployment?
+   ReplicationController doesn’t support rolling updates, advanced label selectors, or rollbacks. Deployments (which manage ReplicaSets) offer better control, monitoring, and update strategies.
+
 
