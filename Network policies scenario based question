@@ -77,8 +77,128 @@ You have two teams working in separate namespaces. How can you isolate them so t
 Answer:
 Apply a deny-all policy in each namespace and then selectively allow traffic only within the same namespace.
 
+🧠 Advanced Kubernetes Network Policies – Interview Q&A
+❓ 1. How does Kubernetes determine if a NetworkPolicy applies to a pod?
+Answer:
+Kubernetes evaluates the podSelector of the NetworkPolicy. If the selector matches a pod's labels, the policy applies to that pod.
 
+If multiple policies match a pod, their rules are combined (additive) — not overwritten.
 
+If no policies match, then traffic is allowed by default.
 
+❓ 2. What is the behavior if a pod is targeted by both an Ingress and an Egress policy?
+Answer:
+Each policy type is evaluated independently:
 
-ChatGPT can make mistakes. Check importan
+Ingress policy controls incoming traffic to the pod.
+
+Egress policy controls outgoing traffic from the pod.
+
+If both are applied, the pod must satisfy both ingress and egress rules to establish communication.
+
+❓ 3. How do Network Policies interact with Kubernetes Services?
+Answer:
+NetworkPolicies apply to pods, not services.
+However, when you connect to a Service, the traffic is routed to backend pods — so the NetworkPolicy for those pods is enforced.
+
+Example: If a policy blocks ingress to pods behind a Service, even accessing the Service will fail.
+
+❓ 4. Can Network Policies be used to restrict node-to-pod traffic?
+Answer:
+No. Network Policies only control pod-to-pod and pod-to-external communication.
+They do not block traffic from:
+
+The kubelet
+
+Nodes
+
+Host processes (like monitoring agents)
+
+❓ 5. Can you apply a default deny-all ingress and egress policy in Kubernetes?
+Answer:
+Yes. You can create a policy with empty ingress and/or egress rules:
+
+yaml
+Copy
+Edit
+policyTypes: ["Ingress", "Egress"]
+ingress: []
+egress: []
+This will block all ingress and egress unless specifically allowed by other policies.
+
+❓ 6. What happens if multiple NetworkPolicies apply to the same pod?
+Answer:
+They are additive:
+
+All allowed traffic from any of the policies is combined.
+
+This means if one policy allows traffic from frontend, and another from monitoring, both are allowed.
+
+There is no priority or overriding — all matching policies are enforced together.
+
+❓ 7. How can you allow traffic from a specific pod in another namespace?
+Answer:
+Use both namespaceSelector and podSelector:
+
+yaml
+Copy
+Edit
+ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: payments
+      podSelector:
+        matchLabels:
+          app: billing-service
+This restricts traffic only from pods labeled app=billing-service in the payments namespace.
+
+❓ 8. What is the purpose of ipBlock in a NetworkPolicy?
+Answer:
+ipBlock allows you to define rules based on IP CIDR ranges, usually for:
+
+Allowing/blocking access from external networks
+
+Restricting pod egress to specific external IP ranges
+
+Example:
+
+yaml
+Copy
+Edit
+from:
+  - ipBlock:
+      cidr: 10.0.0.0/24
+      except:
+        - 10.0.0.5/32
+❓ 9. What are the limitations of Network Policies in Kubernetes?
+Answer:
+
+Only effective with a CNI plugin that supports them.
+
+Cannot control node-to-pod traffic.
+
+Cannot log or audit blocked traffic unless supported by the CNI plugin (e.g., Calico).
+
+No support for layer 7 (application-layer) filtering — it's purely layer 3/4 (IP + port).
+
+No policy priority or ordering — rules are combined.
+
+❓ 10. How do you allow DNS resolution in a restricted egress environment?
+Answer:
+
+Allow egress to port 53 over UDP and TCP:
+
+yaml
+Copy
+Edit
+egress:
+  - to:
+      - ipBlock:
+          cidr: 0.0.0.0/0
+    ports:
+      - protocol: UDP
+        port: 53
+      - protocol: TCP
+        port: 53
+
