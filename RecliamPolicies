@@ -276,4 +276,80 @@ spec:
 
 
 
-ChatGPT can make mistakes. 
+✅ Basic Interview Questions
+Q1. What is a reclaim policy in Kubernetes?
+Answer:
+A reclaim policy in Kubernetes determines what happens to a PersistentVolume (PV) when its associated PersistentVolumeClaim (PVC) is deleted. The reclaim policy is defined in the PV specification using the persistentVolumeReclaimPolicy field.
+
+Q2. What are the different types of reclaim policies in Kubernetes?
+Answer:
+There are three reclaim policies:
+
+Retain – Keeps the volume and data after PVC is deleted.
+
+Delete – Deletes the volume and underlying storage.
+
+Recycle (Deprecated) – Used to scrub the volume and make it available again. This has been deprecated.
+
+Q3. When should you use the ‘Retain’ reclaim policy?
+Answer:
+Use Retain when you want to preserve data after a PVC is deleted — for example:
+
+In production environments where data loss must be avoided.
+
+When manual cleanup or migration is required.
+
+For compliance or forensic use cases.
+
+Q4. What happens when a PVC bound to a PV with Retain is deleted?
+Answer:
+The PVC is deleted, but the PV remains in the "Released" state, and the actual data is not deleted. An admin must manually delete or recycle the PV before it can be reused.
+
+Q5. What is the difference between ‘Delete’ and ‘Retain’ reclaim policies?
+Answer:
+
+Feature	Delete	Retain
+Action on PVC delete	Deletes PV and data	Keeps PV and data
+Reusability	Storage is freed and reused	Admin intervention required
+Risk	Data is permanently lost	Data is preserved
+Use Case	Test/temporary environments	Production, backup, audits
+
+✅ Scenario-Based Questions
+Q6. Scenario: You have a critical database volume. What reclaim policy would you use and why?
+Answer:
+I would use the Retain reclaim policy to ensure that data is not automatically deleted if the PVC is deleted accidentally. This gives us the chance to back up or inspect the data before manual deletion.
+
+Q7. You noticed a PV in ‘Released’ state. What could be the reason, and what actions will you take?
+Answer:
+Reason: The PVC using the PV was deleted and the PV has a Retain policy.
+
+Action:
+
+Manually clean or inspect the data.
+
+Delete or update the PV manually.
+
+If reusing, remove the claimRef and bind it to a new PVC.
+
+Q8. Can you change the reclaim policy of an existing PV?
+Answer:
+Yes, you can update the reclaim policy using:
+
+bash
+Copy
+Edit
+kubectl patch pv <pv-name> -p '{"spec":{"persistentVolumeReclaimPolicy":"Retain"}}'
+But this only affects future behavior, not existing bindings.
+
+Q9. What happens to dynamically provisioned volumes when the PVC is deleted?
+Answer:
+Dynamically provisioned volumes typically use the Delete reclaim policy (defined in the StorageClass), so both the PV and the underlying storage (e.g., AWS EBS, GCE disk, NFS share) are automatically deleted.
+
+Q10. How does reclaim policy impact storage costs in cloud environments?
+Answer:
+If Retain is used, storage may continue to be billed even if it's not in use. It requires manual cleanup. With Delete, storage is released automatically, saving cost in test environments.
+
+
+Ask ChatGPT
+
+
