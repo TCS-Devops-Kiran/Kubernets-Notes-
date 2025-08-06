@@ -1,0 +1,75 @@
+Kubernetes Probes – Interview Questions & Answers
+❓ 1. What is the difference between liveness and readiness probes in Kubernetes?
+Answer:
+
+Liveness Probe checks whether the application is still running. If it fails, Kubernetes restarts the container.
+
+Readiness Probe checks whether the application is ready to handle requests. If it fails, the Pod is removed from service endpoints, but not restarted.
+
+❓ 2. When would you use a readiness probe over a liveness probe?
+Answer:
+Use a readiness probe when your app needs some time after starting to initialize or connect to external services (like DB). It ensures traffic is only sent to Pods that are ready to serve.
+
+❓ 3. What happens if a liveness probe fails?
+Answer:
+If the liveness probe fails, Kubernetes considers the container to be unhealthy and automatically restarts it to recover from the faulty state.
+
+❓ 4. What happens if a readiness probe fails?
+Answer:
+If the readiness probe fails, the Pod is marked as unready and is removed from the load balancer (service endpoint). It continues running but will not receive traffic until it becomes ready again.
+
+❓ 5. Can you use both readiness and liveness probes together? Why?
+Answer:
+Yes. It is a common best practice.
+
+Liveness probe ensures the container is alive.
+
+Readiness probe ensures it's ready to serve traffic.
+Using both gives more granular control over Pod health and traffic routing.
+
+❓ 6. Which probe would you use for a startup delay in your app?
+Answer:
+Readiness probe — it prevents the Pod from receiving traffic until the app is fully initialized.
+
+❓ 7. What types of probes are supported in Kubernetes?
+Answer:
+Kubernetes supports three types of probes:
+
+httpGet: Performs an HTTP request to an endpoint (e.g., /health)
+
+tcpSocket: Tries to open a TCP connection to the container
+
+exec: Runs a custom command inside the container
+
+❓ 8. Can a liveness probe cause a container to go into a crash loop?
+Answer:
+Yes. If the liveness probe is misconfigured (e.g., wrong path or port), it will keep failing, causing Kubernetes to continuously restart the container.
+
+❓ 9. How do initialDelaySeconds and periodSeconds work in a probe?
+Answer:
+
+initialDelaySeconds: Time to wait after the container starts before the first probe is run.
+
+periodSeconds: How often the probe is executed.
+
+❓ 10. Give a real-time scenario where readiness probe helped avoid application downtime.
+Answer:
+In one project, our Spring Boot app needed 20 seconds to load configurations and connect to the database. With a readiness probe, Kubernetes waited until the app was fully ready before routing traffic. Without it, users would have received errors during startup.
+
+🧠 Bonus Scenario-Based Questions
+❓ 11. Your application restarts frequently. How would you troubleshoot if it's due to liveness probe failure?
+Answer:
+
+Check Pod logs using kubectl logs
+
+Describe Pod to see probe failure info: kubectl describe pod <pod-name>
+
+Validate that the probe endpoint exists and responds correctly
+
+Adjust failureThreshold, initialDelaySeconds, or fix app issues
+
+❓ 12. Can a Pod be live but not ready?
+Answer:
+Yes. A Pod may be running (live) but still initializing or waiting on external services, so it may not yet be ready to serve traffic.
+===================================================================================
+
