@@ -1,0 +1,84 @@
+cenario 1: Deny All Ingress Traffic to a Pod
+Question:
+You want to ensure that no external pod or service can access a backend pod. What type of network policy would you apply?
+
+Answer:
+Create a NetworkPolicy with an empty ingress rule, like below:
+
+yaml
+Copy
+Edit
+spec:
+  podSelector:
+    matchLabels:
+      app: backend
+  policyTypes:
+  - Ingress
+  ingress: []
+This will deny all inbound traffic to the pods labeled app=backend.
+
+🎯 Scenario 2: Allow Ingress Only from a Specific Namespace
+Question:
+You want to allow traffic to a pod only from a pod in the frontend namespace. How would you do that?
+
+Answer:
+
+yaml
+Copy
+Edit
+spec:
+  podSelector:
+    matchLabels:
+      app: backend
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: frontend
+This uses a namespaceSelector to restrict traffic from other namespaces.
+
+🎯 Scenario 3: Pod Cannot Resolve DNS
+Question:
+After applying a NetworkPolicy, your pod can’t resolve domain names. What could be the issue?
+
+Answer:
+Most likely, the egress rule is blocking DNS (UDP on port 53). To fix:
+
+yaml
+Copy
+Edit
+egress:
+- to:
+  - ipBlock:
+      cidr: 0.0.0.0/0
+  ports:
+  - protocol: UDP
+    port: 53
+🎯 Scenario 4: Restrict Pod Egress to Internet but Allow Internal Cluster Communication
+Question:
+How would you restrict pods from accessing the internet but allow them to communicate with other pods in the same cluster?
+
+Answer:
+Use an egress policy that only allows traffic to cluster IP ranges (e.g., 10.0.0.0/16):
+
+yaml
+Copy
+Edit
+egress:
+- to:
+  - ipBlock:
+      cidr: 10.0.0.0/16
+This blocks external access but allows internal cluster communication.
+
+🎯 Scenario 5: Multi-Tenant Isolation
+Question:
+You have two teams working in separate namespaces. How can you isolate them so that pods in one namespace can't access pods in the other?
+
+Answer:
+Apply a deny-all policy in each namespace and then selectively allow traffic only within the same namespace.
+
+
+
+
+
+ChatGPT can make mistakes. Check importan
