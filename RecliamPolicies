@@ -1,0 +1,279 @@
+Reclaim Policies in Kubernetes
+Kubernetes supports three types of PersistentVolume (PV) reclaim policies that define what happens to the volume and its underlying storage when the bound PersistentVolumeClaim (PVC) is deleted.
+
+1. Retain
+Behavior: When a PVC is deleted, the associated PV is not deleted and enters a Released state.
+
+Purpose: Useful for manual recovery or investigation. The actual data remains intact, allowing administrators to manually reclaim or reuse it.
+
+Use case: Critical data that shouldn't be lost automatically.
+
+2. Delete
+Behavior: When a PVC is deleted, the associated PV and the underlying storage (e.g., EBS volume, NFS share) are automatically deleted.
+
+Purpose: Ensures storage is cleaned up when no longer needed.
+
+Use case: Temporary or test environments where automatic cleanup is preferred.
+
+3. Recycle (Deprecated)
+Behavior: Used to scrub (wipe) the volume and make it available again.
+
+Status: Deprecated in favor of explicit, custom cleanup logic or dynamic provisioning.
+
+Example: Static NFS PersistentVolume
+yaml
+Copy
+Edit
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mongodb-pv
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    server: 172.31.11.218
+    path: /mnt/nfs_share
+  persistentVolumeReclaimPolicy: Delete  # Options: Retain | Delete
+Dynamic NFS Volume Provisioning Using External Provisioner
+This example shows how to set up dynamic provisioning using the NFS Subdir External Provisioner.
+
+Step 1: RBAC for Provisioner
+yaml
+Copy
+Edit
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nfs-pod-provisioner-sa
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: nfs-provisioner-clusterRole
+rules:
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "update", "patch"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: nfs-provisioner-rolebinding
+subjects:
+  - kind: ServiceAccount
+    name: nfs-pod-provisioner-sa
+    namespace: kube-system
+roleRef:
+  kind: ClusterRole
+  name: nfs-provisioner-clusterRole
+  apiGroup: rbac.authorization.k8s.io
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: nfs-pod-provisioner-otherRoles
+  namespace: kube-system
+rules:
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: nfs-pod-provisioner-otherRoles
+  namespace: kube-system
+subjects:
+  - kind: ServiceAccount
+    name: nfs-pod-provisioner-sa
+    namespace: kube-system
+roleRef:
+  kind: Role
+  name: nfs-pod-provisioner-otherRoles
+  apiGroup: rbac.authorization.k8s.io
+Step 2: Deploy NFS Provisioner
+yaml
+Copy
+Edit
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nfs-pod-provisioner
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nfs-pod-provisioner
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: nfs-pod-provisioner
+    spec:
+      serviceAccountName: nfs-pod-provisioner-sa
+      containers:
+        - name: nfs-pod-provisioner
+          image: rkevin/nfs-subdir-external-provisioner:fix-k8s-1.20
+          volumeMounts:
+            - name: nfs-provisioner-v
+              mountPath: /persistentvolumes
+          env:
+            - name: PROVISIONER_NAME
+              value: nfs-provisioner
+            - name: NFS_SERVER
+              value: 172.31.11.218
+            - name: NFS_PATH
+              value: /mnt/nfs_share
+      volumes:
+        - name: nfs-provisioner-v
+          nfs:
+            server: 172.31.11.218
+            path: /mnt/nfs_share
+Step 3: Create StorageClass
+yaml
+Copy
+Edit
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: nfs-storageclass
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: nfs-provisioner
+parameters:
+  archiveOnDelete: "false"
+✅ Apply with:
+kubectl apply -f nfsProvisioner.yaml
+
+MongoDB ReplicaSet with NFS PVC
+yaml
+Copy
+Edit
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mongodb-pvc
+  namespace: prod
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: mongodb
+  namespace: prod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongodb
+  template:
+    metadata:
+      labels:
+        app: mongodb
+    spec:
+      containers:
+        - name: mongocon
+          image: mongo
+          ports:
+            - containerPort: 27017
+          env:
+            - name: MONGO_INITDB_ROOT_USERNAME
+              value: devdb
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              value: devdb@123
+          volumeMounts:
+            - name: mongonfsvol
+              mountPath: /data/db
+      volumes:
+        - name: mongonfsvol
+          persistentVolumeClaim:
+            claimName: mongodb-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongosvc
+  namespace: prod
+spec:
+  type: ClusterIP
+  selector:
+    app: mongodb
+  ports:
+    - port: 27017
+      targetPort: 27017
+Spring Boot Deployment with MongoDB Connection (Different Namespace)
+yaml
+Copy
+Edit
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: springapp
+  namespace: test-ns
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: springapp
+  template:
+    metadata:
+      labels:
+        app: springapp
+    spec:
+      containers:
+        - name: springapp
+          image: kkeducation12345/spring-app:1.0.0
+          ports:
+            - containerPort: 8080
+          env:
+            - name: MONGO_DB_HOSTNAME
+              value: mongosvc.prod.svc.cluster.local  # Use full DNS if accessing cross-namespace
+            - name: MONGO_DB_USERNAME
+              value: devdb
+            - name: MONGO_DB_PASSWORD
+              value: devdb@123
+          resources:
+            requests:
+              cpu: 300m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: springappsvc
+  namespace: test-ns
+spec:
+  type: NodePort
+  selector:
+    app: springapp
+  ports:
+    - port: 80
+      targetPort: 8080
+
+
+
+ChatGPT can make mistakes. 
